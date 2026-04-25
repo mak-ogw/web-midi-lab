@@ -1,8 +1,11 @@
+import MidiDeviceList from './components/MidiDeviceList';
+import './App.css';
+
 function App() {
   return (
-    <main>
+    <main className="app">
       <h1>Web MIDI Lab</h1>
-      <p>MIDI Monitor will be implemented here.</p>
+      <MidiDeviceList />
     </main>
   );
 }

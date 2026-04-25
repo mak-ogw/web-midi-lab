@@ -5,6 +5,7 @@ import {
   requestWebMidiAccess,
   getMidiDeviceSnapshot,
   notSupportedMessage,
+  sendTestNote,
 } from './.tmp-test/webMidi.js';
 
 function setNavigator(value) {
@@ -69,4 +70,20 @@ test('permission denied errors are propagated', async () => {
   await assert.rejects(async () => {
     await requestWebMidiAccess();
   }, permissionError);
+});
+
+test('sendTestNote sends note on then note off for channel 1', async () => {
+  const sentMessages = [];
+  const fakeOutput = {
+    send: (message) => {
+      sentMessages.push(message);
+    },
+  };
+
+  await sendTestNote(fakeOutput, 1);
+
+  assert.deepEqual(sentMessages, [
+    [0x90, 60, 100],
+    [0x80, 60, 0],
+  ]);
 });

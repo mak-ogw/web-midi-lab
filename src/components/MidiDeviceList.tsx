@@ -3,6 +3,7 @@ import {
   getMidiDeviceSnapshot,
   notSupportedMessage,
   requestWebMidiAccess,
+  sendTestNote,
 } from '../lib/midi/webMidi';
 import type { MidiDeviceSnapshot, MidiPortInfo } from '../lib/midi/types';
 
@@ -99,6 +100,9 @@ function DeviceList({ devices }: { devices: MidiPortInfo[] }) {
 export default function MidiDeviceList() {
   const [midiAccess, setMidiAccess] = useState<MIDIAccess | null>(null);
   const [selectedInputId, setSelectedInputId] = useState('');
+  const [selectedOutputId, setSelectedOutputId] = useState('');
+  const [sendStatus, setSendStatus] = useState<string | null>(null);
+  const [isSendingTestNote, setIsSendingTestNote] = useState(false);
   const [logMessages, setLogMessages] = useState<MidiLogItem[]>([]);
   const nextLogId = useRef(1);
   const [midiState, setMidiState] = useState<MidiState>({
@@ -122,14 +126,50 @@ export default function MidiDeviceList() {
 
         return devices.inputs[0]?.id ?? '';
       });
+      setSelectedOutputId((current) => {
+        if (devices.outputs.some((output) => output.id === current)) {
+          return current;
+        }
+
+        return devices.outputs[0]?.id ?? '';
+      });
+      setSendStatus(null);
       setMidiState({ loading: false, error: null, devices });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to get MIDI access';
       setMidiAccess(null);
       setSelectedInputId('');
+      setSelectedOutputId('');
+      setSendStatus(null);
       setMidiState({ loading: false, error: message, devices: emptyDevices });
     }
   }, []);
+
+  const handleSendTestNote = useCallback(async () => {
+    if (!midiAccess || !selectedOutputId) {
+      setSendStatus('Please select a MIDI output device first.');
+      return;
+    }
+
+    const output = midiAccess.outputs.get(selectedOutputId);
+    if (!output) {
+      setSendStatus('The selected MIDI output is no longer available. Please refresh devices.');
+      return;
+    }
+
+    setIsSendingTestNote(true);
+    setSendStatus(null);
+
+    try {
+      await sendTestNote(output, 300);
+      setSendStatus(`Test note sent to ${output.name ?? 'selected output'}.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      setSendStatus(`Failed to send test note: ${message}`);
+    } finally {
+      setIsSendingTestNote(false);
+    }
+  }, [midiAccess, selectedOutputId]);
 
   useEffect(() => {
     loadDevices();
@@ -208,6 +248,44 @@ export default function MidiDeviceList() {
           ) : (
             <DeviceList devices={midiState.devices.outputs} />
           )}
+
+          <div className="midi-output-controls">
+            <h3>MIDI Output Test</h3>
+            <div className="midi-log-controls-row">
+              <label htmlFor="midi-output-select">Output Device</label>
+              <select
+                id="midi-output-select"
+                value={selectedOutputId}
+                onChange={(event) => {
+                  setSelectedOutputId(event.target.value);
+                  setSendStatus(null);
+                }}
+                disabled={midiState.devices.outputs.length === 0}
+              >
+                {midiState.devices.outputs.length === 0 ? (
+                  <option value="">No outputs available</option>
+                ) : (
+                  midiState.devices.outputs.map((output) => (
+                    <option key={output.id} value={output.id}>
+                      {output.name}
+                    </option>
+                  ))
+                )}
+              </select>
+              <button
+                type="button"
+                onClick={handleSendTestNote}
+                disabled={midiState.devices.outputs.length === 0 || isSendingTestNote}
+              >
+                {isSendingTestNote ? 'Sending...' : 'Send Test Note'}
+              </button>
+            </div>
+            {sendStatus && (
+              <p className={sendStatus.startsWith('Failed') ? 'error-message' : 'success-message'}>
+                {sendStatus}
+              </p>
+            )}
+          </div>
 
           <div className="midi-log-controls">
             <h3>MIDI Input Log</h3>

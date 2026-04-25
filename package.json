@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:unit:build": "tsc --ignoreConfig --pretty false --target es2020 --module esnext --moduleResolution bundler --lib ES2023,DOM --skipLibCheck --outDir .tmp-test src/lib/midi/types.ts src/lib/midi/webMidi.ts",
+    "test:unit": "npm run test:unit:build && node --experimental-specifier-resolution=node --test test_webMidi.test.mjs"
   },
   "dependencies": {
     "react": "^19.2.5",

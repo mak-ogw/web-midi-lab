@@ -58,6 +58,16 @@
   color: #d93f0b;
 }
 
+.success-message {
+  color: #1a7f37;
+}
+
+.midi-output-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .midi-log-controls {
   display: flex;
   flex-direction: column;

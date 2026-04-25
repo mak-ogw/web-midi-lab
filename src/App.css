@@ -57,3 +57,41 @@
 .error-message {
   color: #d93f0b;
 }
+
+.midi-log-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.midi-log-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.midi-log-controls-row select {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.midi-log-area {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.midi-log-list {
+  margin: 0;
+  padding-left: 20px;
+  font-family: var(--mono);
+  font-size: 14px;
+  display: grid;
+  gap: 4px;
+}

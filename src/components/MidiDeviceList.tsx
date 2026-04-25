@@ -21,6 +21,11 @@ type MidiLogItem = {
   bytes: string;
 };
 
+type SendStatus = {
+  tone: 'success' | 'error';
+  message: string;
+};
+
 const emptyDevices: MidiDeviceSnapshot = {
   inputs: [],
   outputs: [],
@@ -101,7 +106,7 @@ export default function MidiDeviceList() {
   const [midiAccess, setMidiAccess] = useState<MIDIAccess | null>(null);
   const [selectedInputId, setSelectedInputId] = useState('');
   const [selectedOutputId, setSelectedOutputId] = useState('');
-  const [sendStatus, setSendStatus] = useState<string | null>(null);
+  const [sendStatus, setSendStatus] = useState<SendStatus | null>(null);
   const [isSendingTestNote, setIsSendingTestNote] = useState(false);
   const [logMessages, setLogMessages] = useState<MidiLogItem[]>([]);
   const nextLogId = useRef(1);
@@ -147,13 +152,19 @@ export default function MidiDeviceList() {
 
   const handleSendTestNote = useCallback(async () => {
     if (!midiAccess || !selectedOutputId) {
-      setSendStatus('Please select a MIDI output device first.');
+      setSendStatus({
+        tone: 'error',
+        message: 'Please select a MIDI output device first.',
+      });
       return;
     }
 
     const output = midiAccess.outputs.get(selectedOutputId);
     if (!output) {
-      setSendStatus('The selected MIDI output is no longer available. Please refresh devices.');
+      setSendStatus({
+        tone: 'error',
+        message: 'The selected MIDI output is no longer available. Please refresh devices.',
+      });
       return;
     }
 
@@ -162,10 +173,16 @@ export default function MidiDeviceList() {
 
     try {
       await sendTestNote(output, 300);
-      setSendStatus(`Test note sent to ${output.name ?? 'selected output'}.`);
+      setSendStatus({
+        tone: 'success',
+        message: `Test note sent to ${output.name ?? 'selected output'}.`,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      setSendStatus(`Failed to send test note: ${message}`);
+      setSendStatus({
+        tone: 'error',
+        message: `Failed to send test note: ${message}`,
+      });
     } finally {
       setIsSendingTestNote(false);
     }
@@ -281,8 +298,8 @@ export default function MidiDeviceList() {
               </button>
             </div>
             {sendStatus && (
-              <p className={sendStatus.startsWith('Failed') ? 'error-message' : 'success-message'}>
-                {sendStatus}
+              <p className={sendStatus.tone === 'error' ? 'error-message' : 'success-message'}>
+                {sendStatus.message}
               </p>
             )}
           </div>

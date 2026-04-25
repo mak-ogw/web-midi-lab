@@ -71,3 +71,12 @@ export default defineConfig([
   },
 ])
 ```
+
+## Unit tests for Web MIDI utility
+
+This repository includes unit tests for the Web MIDI utility layer that do **not** require real browser MIDI access.
+
+- Run tests: `npm run test:unit`
+- The tests mock `navigator.requestMIDIAccess`.
+- The test flow uses Node's built-in test runner plus TypeScript compilation to a temporary `.tmp-test` folder.
+- No additional test dependency (for example Vitest) is required, which avoids install failures in restricted npm environments.

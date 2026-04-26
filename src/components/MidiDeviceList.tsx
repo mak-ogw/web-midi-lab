@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import EightStepSequencer from './EightStepSequencer';
 import {
   getMidiDeviceSnapshot,
   notSupportedMessage,
@@ -336,6 +337,13 @@ export default function MidiDeviceList() {
               </p>
             )}
           </div>
+
+          <EightStepSequencer
+            midiAccess={midiAccess}
+            outputs={midiState.devices.outputs}
+            selectedOutputId={selectedOutputId}
+            scheduler={schedulerRef.current}
+          />
 
           <div className="midi-log-controls">
             <h3>MIDI Input Log</h3>

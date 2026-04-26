@@ -115,3 +115,22 @@
   display: grid;
   gap: 4px;
 }
+
+.sequencer-steps {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sequencer-step {
+  min-height: 40px;
+}
+
+.sequencer-step.is-enabled {
+  border-color: #1a7f37;
+}
+
+.sequencer-step.is-current {
+  outline: 2px solid #0969da;
+  outline-offset: 1px;
+}

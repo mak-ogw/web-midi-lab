@@ -6,7 +6,7 @@ import {
   getMidiDeviceSnapshot,
   notSupportedMessage,
   sendTestNote,
-} from './.tmp-test/midi/webMidi.js';
+} from './.tmp-test/lib/midi/webMidi.js';
 
 function setNavigator(value) {
   Object.defineProperty(globalThis, 'navigator', {

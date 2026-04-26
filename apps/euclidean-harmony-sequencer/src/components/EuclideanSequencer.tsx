@@ -4,15 +4,19 @@ import { createMidiEventScheduler } from '@web-midi-lab/scheduler';
 import { createTransportClock } from '@web-midi-lab/transport';
 import { useMidiOutputs } from './useMidiOutputs';
 import {
+  applyHarmonyFromUiValueChange,
   applyPitch,
   calculateGateMs,
   clampGatePercent,
   clampPulses,
   clampSteps,
+  createHarmonyState,
   euclidean,
+  getHarmonyPlaybackPitchSet,
   getStepDurationMs,
   rotatePattern,
   scaleTables,
+  type HarmonyState,
   type ScaleName,
 } from './euclideanHelpers';
 
@@ -68,6 +72,7 @@ export default function EuclideanSequencer() {
   const [currentStep, setCurrentStep] = useState<number | null>(null);
   const [scaleName, setScaleName] = useState<ScaleName>('chromatic');
   const [pitch, setPitch] = useState(0);
+  const [harmony, setHarmony] = useState(0);
 
   const nextStepRef = useRef(0);
   const nextStepBeatRef = useRef(0);
@@ -78,7 +83,12 @@ export default function EuclideanSequencer() {
     return rotatePattern(base, offset);
   }, [offset, pulses, steps]);
 
-  const activePitchSet = useMemo(() => applyPitch(fixedPitchSet, pitch, scaleName), [pitch, scaleName]);
+  const pitchedSet = useMemo(() => applyPitch(fixedPitchSet, pitch, scaleName), [pitch, scaleName]);
+  const [harmonyState, setHarmonyState] = useState<HarmonyState>(() => createHarmonyState(pitchedSet));
+
+  useEffect(() => {
+    setHarmonyState(createHarmonyState(pitchedSet));
+  }, [pitchedSet]);
 
   const sendAllNotesOff = useCallback(() => {
     if (!midiAccess || !selectedOutputId) {
@@ -129,7 +139,7 @@ export default function EuclideanSequencer() {
           const noteOnTime = performance.now() + scheduleOffsetMs;
           const gateMs = calculateGateMs(stepDurationMs, gatePercent);
 
-          for (const note of activePitchSet) {
+          for (const note of getHarmonyPlaybackPitchSet(harmonyState)) {
             const eventBaseId = `euclid-${eventCounterRef.current++}-${note}`;
             scheduler.schedule({
               id: `${eventBaseId}-on`,
@@ -152,7 +162,7 @@ export default function EuclideanSequencer() {
     return () => {
       window.clearInterval(tickId);
     };
-  }, [activePitchSet, division, gatePercent, isRunning, midiAccess, pattern, scheduler, selectedOutputId, transport]);
+  }, [division, gatePercent, harmonyState.pitchSet, isRunning, midiAccess, pattern, scheduler, selectedOutputId, transport]);
 
   const hasOutput = midiState.devices.outputs.some((output) => output.id === selectedOutputId);
 
@@ -279,6 +289,27 @@ export default function EuclideanSequencer() {
         </label>
 
         <label>
+          harmony
+          <input
+            type="number"
+            value={harmony}
+            onChange={(event) => {
+              const nextHarmony = Math.round(Number(event.target.value));
+              if (!Number.isFinite(nextHarmony)) {
+                return;
+              }
+
+              if (nextHarmony === harmony) {
+                return;
+              }
+
+              setHarmony(nextHarmony);
+              setHarmonyState((current) => applyHarmonyFromUiValueChange(current, harmony, nextHarmony, scaleName));
+            }}
+          />
+        </label>
+
+        <label>
           gate %
           <input
             type="number"
@@ -291,7 +322,7 @@ export default function EuclideanSequencer() {
       </div>
 
       <p>Fixed pitch set: [{fixedPitchSet.join(', ')}]</p>
-      <p>Active pitch set: [{activePitchSet.join(', ')}]</p>
+      <p>Active pitch set: [{harmonyState.pitchSet.join(', ')}]</p>
       <p>Current step: {currentStep === null ? '-' : currentStep + 1}</p>
 
       <div className="pattern-grid" role="group" aria-label="Euclidean pattern">

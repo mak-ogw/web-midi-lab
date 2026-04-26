@@ -12,6 +12,12 @@ export const scaleTables = {
 } as const;
 
 export type ScaleName = keyof typeof scaleTables;
+export type HarmonyDirection = -1 | 1;
+
+export type HarmonyState = {
+  pitchSet: number[];
+  nextTargetIndex: number;
+};
 
 const minMidiNote = 0;
 const maxMidiNote = 127;
@@ -119,4 +125,44 @@ export function shiftNoteInScale(note: number, pitchSteps: number, scale: readon
 export function applyPitch(pitchSet: readonly number[], pitchSteps: number, scaleName: ScaleName): number[] {
   const scale = scaleTables[scaleName];
   return pitchSet.map((note) => shiftNoteInScale(note, pitchSteps, scale));
+}
+
+export function createHarmonyState(pitchSet: readonly number[]): HarmonyState {
+  return {
+    pitchSet: [...pitchSet],
+    nextTargetIndex: 0,
+  };
+}
+
+export function mutateHarmonyState(state: HarmonyState, direction: HarmonyDirection, scaleName: ScaleName): HarmonyState {
+  if (state.pitchSet.length === 0) {
+    return state;
+  }
+
+  const index = state.nextTargetIndex % state.pitchSet.length;
+  const notes = [...state.pitchSet];
+  notes[index] = shiftNoteInScale(notes[index], direction, scaleTables[scaleName]);
+
+  return {
+    pitchSet: notes,
+    nextTargetIndex: (index + 1) % notes.length,
+  };
+}
+
+export function applyHarmonyFromUiValueChange(
+  state: HarmonyState,
+  previousValue: number,
+  nextValue: number,
+  scaleName: ScaleName,
+): HarmonyState {
+  if (!Number.isFinite(nextValue) || Math.round(nextValue) === Math.round(previousValue)) {
+    return state;
+  }
+
+  const direction: HarmonyDirection = nextValue > previousValue ? 1 : -1;
+  return mutateHarmonyState(state, direction, scaleName);
+}
+
+export function getHarmonyPlaybackPitchSet(state: HarmonyState): number[] {
+  return [...state.pitchSet];
 }

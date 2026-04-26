@@ -6,9 +6,10 @@ import {
   sendTestNote,
   subscribeToInputMessages,
 } from '../lib/midi/webMidi';
-import { decodeMidiMessage, formatMidiBytes } from '../lib/midi/messages';
+import { createNoteOffMessage, createNoteOnMessage, decodeMidiMessage, formatMidiBytes } from '../lib/midi/messages';
 import { findOutputById } from '../lib/midi/deviceUtils';
 import type { MidiDeviceSnapshot, MidiLogEntry, MidiPortInfo } from '../lib/midi/types';
+import { createMidiEventScheduler } from '../lib/scheduler/midiEventScheduler';
 
 type MidiState = {
   loading: boolean;
@@ -65,6 +66,28 @@ export default function MidiDeviceList() {
   const [isSendingTestNote, setIsSendingTestNote] = useState(false);
   const [logMessages, setLogMessages] = useState<MidiLogEntry[]>([]);
   const nextLogId = useRef(1);
+  const midiAccessRef = useRef<MIDIAccess | null>(null);
+  const selectedOutputIdRef = useRef('');
+  const schedulerRef = useRef(
+    createMidiEventScheduler({
+      send: (message, timestampMs) => {
+        const currentAccess = midiAccessRef.current;
+        const currentOutputId = selectedOutputIdRef.current;
+        if (!currentAccess || !currentOutputId) {
+          return;
+        }
+
+        const output = findOutputById(currentAccess, currentOutputId);
+        if (!output) {
+          return;
+        }
+
+        output.send(message, timestampMs);
+      },
+      lookaheadMs: 120,
+      intervalMs: 25,
+    }),
+  );
   const [midiState, setMidiState] = useState<MidiState>({
     loading: true,
     error: null,
@@ -143,9 +166,68 @@ export default function MidiDeviceList() {
     }
   }, [midiAccess, selectedOutputId]);
 
+  const handleScheduleTestNote = useCallback(() => {
+    if (!midiAccess || !selectedOutputId) {
+      setSendStatus({
+        tone: 'error',
+        message: 'Please select a MIDI output device first.',
+      });
+      return;
+    }
+
+    const output = findOutputById(midiAccess, selectedOutputId);
+    if (!output) {
+      setSendStatus({
+        tone: 'error',
+        message: 'The selected MIDI output is no longer available. Please refresh devices.',
+      });
+      return;
+    }
+
+    const startTime = performance.now();
+    const noteOnTime = startTime + 500;
+    const noteOffTime = startTime + 800;
+    const eventPrefix = `test-${Date.now()}`;
+
+    schedulerRef.current.schedule({
+      id: `${eventPrefix}-on`,
+      timeMs: noteOnTime,
+      message: createNoteOnMessage(),
+    });
+
+    schedulerRef.current.schedule({
+      id: `${eventPrefix}-off`,
+      timeMs: noteOffTime,
+      message: createNoteOffMessage(),
+    });
+
+    setSendStatus({
+      tone: 'success',
+      message: `Scheduled test note on ${output.name ?? 'selected output'} in ~500ms.`,
+    });
+  }, [midiAccess, selectedOutputId]);
+
   useEffect(() => {
     loadDevices();
   }, [loadDevices]);
+
+  useEffect(() => {
+    midiAccessRef.current = midiAccess;
+  }, [midiAccess]);
+
+  useEffect(() => {
+    selectedOutputIdRef.current = selectedOutputId;
+  }, [selectedOutputId]);
+
+  useEffect(() => {
+    const scheduler = schedulerRef.current;
+    scheduler.start();
+
+    return () => {
+      scheduler.stop();
+      scheduler.clear();
+    };
+  }, []);
 
   useEffect(() => {
     if (!midiAccess || !selectedInputId) {
@@ -239,6 +321,13 @@ export default function MidiDeviceList() {
                 disabled={midiState.devices.outputs.length === 0 || isSendingTestNote}
               >
                 {isSendingTestNote ? 'Sending...' : 'Send Test Note'}
+              </button>
+              <button
+                type="button"
+                onClick={handleScheduleTestNote}
+                disabled={midiState.devices.outputs.length === 0 || isSendingTestNote}
+              >
+                Schedule Test Note
               </button>
             </div>
             {sendStatus && (

@@ -4,6 +4,7 @@ import { createMidiEventScheduler } from '@web-midi-lab/scheduler';
 import { createTransportClock } from '@web-midi-lab/transport';
 import { useMidiOutputs } from './useMidiOutputs';
 import {
+  applyPitch,
   calculateGateMs,
   clampGatePercent,
   clampPulses,
@@ -11,12 +12,16 @@ import {
   euclidean,
   getStepDurationMs,
   rotatePattern,
+  scaleTables,
+  type ScaleName,
 } from './euclideanHelpers';
 
 const channel = 1;
 const velocity = 100;
-const pitchSet = [60, 64, 67];
+const fixedPitchSet = [60, 64, 67];
 const scheduleOffsetMs = 5;
+const minMidiNote = 0;
+const maxMidiNote = 127;
 
 const divisionOptions = [1, 2, 4, 8, 16];
 
@@ -61,6 +66,8 @@ export default function EuclideanSequencer() {
   const [offset, setOffset] = useState(0);
   const [gatePercent, setGatePercent] = useState(50);
   const [currentStep, setCurrentStep] = useState<number | null>(null);
+  const [scaleName, setScaleName] = useState<ScaleName>('chromatic');
+  const [pitch, setPitch] = useState(0);
 
   const nextStepRef = useRef(0);
   const nextStepBeatRef = useRef(0);
@@ -71,7 +78,9 @@ export default function EuclideanSequencer() {
     return rotatePattern(base, offset);
   }, [offset, pulses, steps]);
 
-  const sendFixedPitchSetNoteOff = useCallback(() => {
+  const activePitchSet = useMemo(() => applyPitch(fixedPitchSet, pitch, scaleName), [pitch, scaleName]);
+
+  const sendAllNotesOff = useCallback(() => {
     if (!midiAccess || !selectedOutputId) {
       return;
     }
@@ -81,7 +90,7 @@ export default function EuclideanSequencer() {
       return;
     }
 
-    for (const note of pitchSet) {
+    for (let note = minMidiNote; note <= maxMidiNote; note += 1) {
       output.send([0x80 | (channel - 1), note, 0]);
     }
   }, [midiAccess, selectedOutputId]);
@@ -90,9 +99,9 @@ export default function EuclideanSequencer() {
     setIsRunning(false);
     transport.stop();
     scheduler.clear();
-    sendFixedPitchSetNoteOff();
+    sendAllNotesOff();
     setCurrentStep(null);
-  }, [scheduler, sendFixedPitchSetNoteOff, transport]);
+  }, [scheduler, sendAllNotesOff, transport]);
 
   useEffect(() => {
     scheduler.start();
@@ -120,7 +129,7 @@ export default function EuclideanSequencer() {
           const noteOnTime = performance.now() + scheduleOffsetMs;
           const gateMs = calculateGateMs(stepDurationMs, gatePercent);
 
-          for (const note of pitchSet) {
+          for (const note of activePitchSet) {
             const eventBaseId = `euclid-${eventCounterRef.current++}-${note}`;
             scheduler.schedule({
               id: `${eventBaseId}-on`,
@@ -143,7 +152,7 @@ export default function EuclideanSequencer() {
     return () => {
       window.clearInterval(tickId);
     };
-  }, [division, gatePercent, isRunning, midiAccess, pattern, scheduler, selectedOutputId, transport]);
+  }, [activePitchSet, division, gatePercent, isRunning, midiAccess, pattern, scheduler, selectedOutputId, transport]);
 
   const hasOutput = midiState.devices.outputs.some((output) => output.id === selectedOutputId);
 
@@ -254,6 +263,22 @@ export default function EuclideanSequencer() {
         </label>
 
         <label>
+          scale
+          <select value={scaleName} onChange={(event) => setScaleName(event.target.value as ScaleName)}>
+            {Object.keys(scaleTables).map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          pitch
+          <input type="number" value={pitch} onChange={(event) => setPitch(Math.round(Number(event.target.value)))} />
+        </label>
+
+        <label>
           gate %
           <input
             type="number"
@@ -265,7 +290,8 @@ export default function EuclideanSequencer() {
         </label>
       </div>
 
-      <p>Fixed pitch set: [{pitchSet.join(', ')}]</p>
+      <p>Fixed pitch set: [{fixedPitchSet.join(', ')}]</p>
+      <p>Active pitch set: [{activePitchSet.join(', ')}]</p>
       <p>Current step: {currentStep === null ? '-' : currentStep + 1}</p>
 
       <div className="pattern-grid" role="group" aria-label="Euclidean pattern">

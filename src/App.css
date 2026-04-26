@@ -3,6 +3,8 @@
   margin: 0 auto;
   padding: 32px 20px 48px;
   text-align: left;
+  display: grid;
+  gap: 16px;
 }
 
 .midi-panel {
@@ -82,6 +84,14 @@
 }
 
 .midi-log-controls-row select {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.midi-log-controls-row input {
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;

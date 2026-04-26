@@ -1,0 +1,18 @@
+{
+  "name": "@web-midi-lab/euclidean-harmony-sequencer",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "test": "tsc --ignoreConfig --pretty false --target es2020 --module esnext --moduleResolution bundler --types node --lib ES2023,DOM --skipLibCheck --outDir .tmp-test src/components/euclideanHelpers.ts src/components/euclideanHelpers.test.ts && node --experimental-specifier-resolution=node --test .tmp-test/euclideanHelpers.test.js && node -e \"require('node:fs').rmSync('.tmp-test', { recursive: true, force: true })\""
+  },
+  "dependencies": {
+    "@web-midi-lab/midi-core": "0.0.0",
+    "@web-midi-lab/scheduler": "0.0.0",
+    "@web-midi-lab/transport": "0.0.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  }
+}

@@ -9,8 +9,9 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @web-midi-lab/midi-monitor",
-    "build": "npm run build -w @web-midi-lab/midi-core && npm run build -w @web-midi-lab/transport && npm run build -w @web-midi-lab/scheduler && npm run build -w @web-midi-lab/midi-monitor",
-    "test": "npm run test -w @web-midi-lab/midi-core && npm run test -w @web-midi-lab/transport && npm run test -w @web-midi-lab/scheduler && npm run test -w @web-midi-lab/midi-monitor"
+    "build": "npm run build -w @web-midi-lab/midi-core && npm run build -w @web-midi-lab/transport && npm run build -w @web-midi-lab/scheduler && npm run build -w @web-midi-lab/midi-monitor && npm run build -w @web-midi-lab/euclidean-harmony-sequencer",
+    "test": "npm run test -w @web-midi-lab/midi-core && npm run test -w @web-midi-lab/transport && npm run test -w @web-midi-lab/scheduler && npm run test -w @web-midi-lab/midi-monitor && npm run test -w @web-midi-lab/euclidean-harmony-sequencer",
+    "dev:euclidean": "npm run dev -w @web-midi-lab/euclidean-harmony-sequencer"
   },
   "dependencies": {
     "react": "^19.2.5",

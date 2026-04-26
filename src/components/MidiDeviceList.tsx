@@ -4,21 +4,16 @@ import {
   notSupportedMessage,
   requestWebMidiAccess,
   sendTestNote,
+  subscribeToInputMessages,
 } from '../lib/midi/webMidi';
-import type { MidiDeviceSnapshot, MidiPortInfo } from '../lib/midi/types';
+import { decodeMidiMessage, formatMidiBytes } from '../lib/midi/messages';
+import { findOutputById } from '../lib/midi/deviceUtils';
+import type { MidiDeviceSnapshot, MidiLogEntry, MidiPortInfo } from '../lib/midi/types';
 
 type MidiState = {
   loading: boolean;
   error: string | null;
   devices: MidiDeviceSnapshot;
-};
-
-type MidiLogItem = {
-  id: number;
-  timestamp: string;
-  type: string;
-  channel: string;
-  bytes: string;
 };
 
 type SendStatus = {
@@ -39,46 +34,6 @@ function formatTimestamp(date: Date): string {
   const seconds = String(date.getSeconds()).padStart(2, '0');
   const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
   return `${hours}:${minutes}:${seconds}.${milliseconds}`;
-}
-
-function toHexByte(value: number): string {
-  return value.toString(16).toUpperCase().padStart(2, '0');
-}
-
-function decodeMidiMessage(data: Uint8Array): { type: string; channel: string } {
-  if (data.length === 0) {
-    return { type: 'Other', channel: '-' };
-  }
-
-  const status = data[0];
-  const messageType = status & 0xf0;
-  const channel = (status & 0x0f) + 1;
-
-  if (messageType === 0x90) {
-    if (data.length > 2 && data[2] === 0) {
-      return { type: 'Note Off', channel: String(channel) };
-    }
-
-    return { type: 'Note On', channel: String(channel) };
-  }
-
-  if (messageType === 0x80) {
-    return { type: 'Note Off', channel: String(channel) };
-  }
-
-  if (messageType === 0xb0) {
-    return { type: 'Control Change', channel: String(channel) };
-  }
-
-  if (messageType === 0xc0) {
-    return { type: 'Program Change', channel: String(channel) };
-  }
-
-  if (messageType === 0xe0) {
-    return { type: 'Pitch Bend', channel: String(channel) };
-  }
-
-  return { type: 'Other', channel: String(channel) };
 }
 
 function DeviceList({ devices }: { devices: MidiPortInfo[] }) {
@@ -108,7 +63,7 @@ export default function MidiDeviceList() {
   const [selectedOutputId, setSelectedOutputId] = useState('');
   const [sendStatus, setSendStatus] = useState<SendStatus | null>(null);
   const [isSendingTestNote, setIsSendingTestNote] = useState(false);
-  const [logMessages, setLogMessages] = useState<MidiLogItem[]>([]);
+  const [logMessages, setLogMessages] = useState<MidiLogEntry[]>([]);
   const nextLogId = useRef(1);
   const [midiState, setMidiState] = useState<MidiState>({
     loading: true,
@@ -159,7 +114,7 @@ export default function MidiDeviceList() {
       return;
     }
 
-    const output = midiAccess.outputs.get(selectedOutputId);
+    const output = findOutputById(midiAccess, selectedOutputId);
     if (!output) {
       setSendStatus({
         tone: 'error',
@@ -197,22 +152,17 @@ export default function MidiDeviceList() {
       return;
     }
 
-    const input = midiAccess.inputs.get(selectedInputId);
-    if (!input) {
-      return;
-    }
-
-    const onMidiMessage = (event: MIDIMessageEvent) => {
+    return subscribeToInputMessages(midiAccess, selectedInputId, (event) => {
       const data = event.data;
       if (!data) {
         return;
       }
 
       const { type, channel } = decodeMidiMessage(data);
-      const bytes = Array.from(data).map(toHexByte).join(' ');
+      const bytes = formatMidiBytes(data);
 
       setLogMessages((current) => {
-        const next: MidiLogItem = {
+        const next: MidiLogEntry = {
           id: nextLogId.current++,
           timestamp: formatTimestamp(new Date()),
           type,
@@ -222,13 +172,7 @@ export default function MidiDeviceList() {
 
         return [next, ...current].slice(0, maxLogMessages);
       });
-    };
-
-    input.addEventListener('midimessage', onMidiMessage);
-
-    return () => {
-      input.removeEventListener('midimessage', onMidiMessage);
-    };
+    });
   }, [midiAccess, selectedInputId]);
 
   return (

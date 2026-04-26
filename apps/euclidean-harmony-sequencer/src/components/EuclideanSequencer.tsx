@@ -6,12 +6,14 @@ import { useMidiOutputs } from './useMidiOutputs';
 import {
   applyHarmonyFromUiValueChange,
   applyPitch,
+  applyVoicing,
   calculateGateMs,
   clampGatePercent,
   clampPulses,
   clampSteps,
   createHarmonyState,
   euclidean,
+  getActivePitchSet,
   getHarmonyPlaybackPitchSet,
   getStepDurationMs,
   rotatePattern,
@@ -22,12 +24,24 @@ import {
 
 const channel = 1;
 const velocity = 100;
-const fixedPitchSet = [60, 64, 67];
 const scheduleOffsetMs = 5;
 const minMidiNote = 0;
 const maxMidiNote = 127;
 
 const divisionOptions = [1, 2, 4, 8, 16];
+const cyclePresets = {
+  triads: [
+    [60, 64, 67],
+    [62, 65, 69],
+    [59, 62, 67],
+  ],
+  sevenths: [
+    [60, 64, 67, 71],
+    [62, 65, 69, 72],
+    [59, 62, 65, 69],
+  ],
+} as const;
+type CyclePresetName = keyof typeof cyclePresets;
 
 export default function EuclideanSequencer() {
   const { midiAccess, midiState, selectedOutputId, setSelectedOutputId, loadDevices } = useMidiOutputs();
@@ -73,6 +87,9 @@ export default function EuclideanSequencer() {
   const [scaleName, setScaleName] = useState<ScaleName>('chromatic');
   const [pitch, setPitch] = useState(0);
   const [harmony, setHarmony] = useState(0);
+  const [voicing, setVoicing] = useState(0);
+  const [cyclePresetName, setCyclePresetName] = useState<CyclePresetName>('triads');
+  const [currentCycleIndex, setCurrentCycleIndex] = useState(0);
 
   const nextStepRef = useRef(0);
   const nextStepBeatRef = useRef(0);
@@ -83,12 +100,19 @@ export default function EuclideanSequencer() {
     return rotatePattern(base, offset);
   }, [offset, pulses, steps]);
 
-  const pitchedSet = useMemo(() => applyPitch(fixedPitchSet, pitch, scaleName), [pitch, scaleName]);
+  const cycles = cyclePresets[cyclePresetName];
+  const activePitchSet = useMemo(() => getActivePitchSet(cycles, currentCycleIndex), [currentCycleIndex, cycles]);
+  const pitchedSet = useMemo(() => applyPitch(activePitchSet, pitch, scaleName), [activePitchSet, pitch, scaleName]);
   const [harmonyState, setHarmonyState] = useState<HarmonyState>(() => createHarmonyState(pitchedSet));
+  const voicedSet = useMemo(() => applyVoicing(getHarmonyPlaybackPitchSet(harmonyState), voicing), [harmonyState, voicing]);
 
   useEffect(() => {
     setHarmonyState(createHarmonyState(pitchedSet));
   }, [pitchedSet]);
+
+  useEffect(() => {
+    setCurrentCycleIndex((current) => Math.min(current, cycles.length - 1));
+  }, [cycles.length]);
 
   const sendAllNotesOff = useCallback(() => {
     if (!midiAccess || !selectedOutputId) {
@@ -139,7 +163,7 @@ export default function EuclideanSequencer() {
           const noteOnTime = performance.now() + scheduleOffsetMs;
           const gateMs = calculateGateMs(stepDurationMs, gatePercent);
 
-          for (const note of getHarmonyPlaybackPitchSet(harmonyState)) {
+          for (const note of voicedSet) {
             const eventBaseId = `euclid-${eventCounterRef.current++}-${note}`;
             scheduler.schedule({
               id: `${eventBaseId}-on`,
@@ -162,7 +186,7 @@ export default function EuclideanSequencer() {
     return () => {
       window.clearInterval(tickId);
     };
-  }, [division, gatePercent, harmonyState.pitchSet, isRunning, midiAccess, pattern, scheduler, selectedOutputId, transport]);
+  }, [division, gatePercent, isRunning, midiAccess, pattern, scheduler, selectedOutputId, transport, voicedSet]);
 
   const hasOutput = midiState.devices.outputs.some((output) => output.id === selectedOutputId);
 
@@ -289,6 +313,28 @@ export default function EuclideanSequencer() {
         </label>
 
         <label>
+          cycle preset
+          <select value={cyclePresetName} onChange={(event) => setCyclePresetName(event.target.value as CyclePresetName)}>
+            {Object.keys(cyclePresets).map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          cycle
+          <select value={currentCycleIndex} onChange={(event) => setCurrentCycleIndex(Number(event.target.value))}>
+            {cycles.map((_, index) => (
+              <option key={index} value={index}>
+                {index + 1}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
           harmony
           <input
             type="number"
@@ -310,6 +356,11 @@ export default function EuclideanSequencer() {
         </label>
 
         <label>
+          voicing
+          <input type="number" value={voicing} onChange={(event) => setVoicing(Math.round(Number(event.target.value)))} />
+        </label>
+
+        <label>
           gate %
           <input
             type="number"
@@ -321,8 +372,9 @@ export default function EuclideanSequencer() {
         </label>
       </div>
 
-      <p>Fixed pitch set: [{fixedPitchSet.join(', ')}]</p>
-      <p>Active pitch set: [{harmonyState.pitchSet.join(', ')}]</p>
+      <p>Active cycle pitch set: [{activePitchSet.join(', ')}]</p>
+      <p>Pitch + Harmony set: [{harmonyState.pitchSet.join(', ')}]</p>
+      <p>Output (Pitch → Harmony → Voicing): [{voicedSet.join(', ')}]</p>
       <p>Current step: {currentStep === null ? '-' : currentStep + 1}</p>
 
       <div className="pattern-grid" role="group" aria-label="Euclidean pattern">

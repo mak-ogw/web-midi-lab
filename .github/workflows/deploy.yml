@@ -27,11 +27,22 @@ jobs:
           cache: npm
 
       - run: npm ci
+
       - run: npm run build
 
-      - uses: actions/upload-pages-artifact@v3
+      - name: Collect build outputs
+        run: |
+          rm -rf pages-dist
+          mkdir -p pages-dist/midi-monitor
+          mkdir -p pages-dist/euclidean-harmony-sequencer
+
+          cp -r apps/midi-monitor/dist/* pages-dist/midi-monitor/
+          cp -r apps/euclidean-harmony-sequencer/dist/* pages-dist/euclidean-harmony-sequencer/
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: pages-dist
 
   deploy:
     environment:
@@ -40,4 +51,5 @@ jobs:
     needs: build
 
     steps:
-      - uses: actions/deploy-pages@v4
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4

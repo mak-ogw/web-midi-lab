@@ -5,18 +5,19 @@ Build small Web MIDI applications that interact with external MIDI devices.
 No built-in audio engine.
 
 ## Architecture Direction (future)
-This project will be split into multiple libraries:
+This repository is still a single app today, but it is being prepared for a future npm workspace monorepo.
 
-- midi-core (Web MIDI wrapper)
-- sequencer-clock (time management)
-- midi-pattern (message generation)
-- midi-input (receive layer)
-- ui-kit (UI components)
+Planned structure (future, not implemented yet):
+
+- `apps/midi-monitor`
+- `packages/midi-core`
+- `packages/transport`
+- `packages/scheduler`
 
 ## Current Phase
 - Single Vite + React + TypeScript app
 - No monorepo yet
-- No library split yet
+- No package extraction yet
 
 ## Constraints (IMPORTANT)
 - Do NOT add external dependencies unless explicitly instructed
@@ -58,3 +59,11 @@ Application-specific sequencer logic should stay outside shared libraries, such 
 
 The shared scheduler should not know what a "step" is.
 It should only handle timestamped musical/MIDI events.
+
+## Boundary expectations for current single-app layout
+Until the monorepo conversion happens, keep reusable code in:
+- `src/lib/midi` → future `packages/midi-core`
+- `src/lib/transport` → future `packages/transport`
+- `src/lib/scheduler` → future `packages/scheduler`
+
+Keep app-specific code (including 8-step UI/behavior) in app/component-level files under `src/components` or other app-layer locations.

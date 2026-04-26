@@ -4,9 +4,11 @@ import test from 'node:test';
 import {
   applyHarmonyFromUiValueChange,
   applyPitch,
+  applyVoicing,
   calculateGateMs,
   createHarmonyState,
   euclidean,
+  getActivePitchSet,
   getHarmonyPlaybackPitchSet,
   getStepDurationMs,
   mutateHarmonyState,
@@ -128,4 +130,47 @@ test('reading playback notes does not advance harmony state', () => {
   assert.deepEqual(firstRead, [60, 64, 67]);
   assert.deepEqual(secondRead, [60, 64, 67]);
   assert.equal(state.nextTargetIndex, 0);
+});
+
+test('positive voicing repeatedly raises the lowest note by octaves', () => {
+  assert.deepEqual(applyVoicing([60, 64, 67], 1), [64, 67, 72]);
+  assert.deepEqual(applyVoicing([60, 64, 67], 2), [67, 72, 76]);
+});
+
+test('negative voicing repeatedly lowers the highest note by octaves', () => {
+  assert.deepEqual(applyVoicing([60, 64, 67], -1), [55, 60, 64]);
+  assert.deepEqual(applyVoicing([60, 64, 67], -2), [52, 55, 60]);
+});
+
+test('voicing preserves pitch classes', () => {
+  const source = [60, 64, 67];
+  const voiced = applyVoicing(source, 3);
+
+  assert.deepEqual(
+    voiced.map((note) => ((note % 12) + 12) % 12).sort((a, b) => a - b),
+    source.map((note) => note % 12).sort((a, b) => a - b),
+  );
+});
+
+test('voicing output is always sorted ascending', () => {
+  assert.deepEqual(applyVoicing([67, 60, 64], 1), [64, 67, 72]);
+  assert.deepEqual(applyVoicing([67, 60, 64], -2), [52, 55, 60]);
+});
+
+test('pipeline order is pitch then harmony then voicing', () => {
+  const pitched = applyPitch([60, 64, 67], 1, 'major');
+  const harmonized = mutateHarmonyState(createHarmonyState(pitched), 1, 'major');
+  const voiced = applyVoicing(harmonized.pitchSet, 1);
+  assert.deepEqual(voiced, [65, 69, 76]);
+});
+
+test('active cycle switching updates immediately by index', () => {
+  const cycles = [
+    [60, 64, 67],
+    [62, 65, 69],
+    [59, 62, 67],
+  ];
+
+  assert.deepEqual(getActivePitchSet(cycles, 0), [60, 64, 67]);
+  assert.deepEqual(getActivePitchSet(cycles, 2), [59, 62, 67]);
 });

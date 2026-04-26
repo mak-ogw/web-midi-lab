@@ -18,6 +18,7 @@ export type HarmonyState = {
   pitchSet: number[];
   nextTargetIndex: number;
 };
+export type PitchCycle = readonly (readonly number[])[];
 
 const minMidiNote = 0;
 const maxMidiNote = 127;
@@ -165,4 +166,35 @@ export function applyHarmonyFromUiValueChange(
 
 export function getHarmonyPlaybackPitchSet(state: HarmonyState): number[] {
   return [...state.pitchSet];
+}
+
+export function applyVoicing(pitchSet: readonly number[], voicingValue: number): number[] {
+  const voicing = Math.round(voicingValue);
+  const notes = [...pitchSet];
+
+  if (notes.length === 0 || voicing === 0) {
+    return [...notes].sort((a, b) => a - b);
+  }
+
+  for (let i = 0; i < Math.abs(voicing); i += 1) {
+    notes.sort((a, b) => a - b);
+
+    if (voicing > 0) {
+      notes[0] += 12;
+      continue;
+    }
+
+    notes[notes.length - 1] -= 12;
+  }
+
+  return notes.sort((a, b) => a - b);
+}
+
+export function getActivePitchSet(cycles: PitchCycle, currentCycleIndex: number): number[] {
+  if (cycles.length === 0) {
+    return [];
+  }
+
+  const safeIndex = Math.min(cycles.length - 1, Math.max(0, Math.round(currentCycleIndex)));
+  return [...cycles[safeIndex]];
 }

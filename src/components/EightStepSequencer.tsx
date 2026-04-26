@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { findOutputById } from '../lib/midi/deviceUtils';
-import { createNoteOffMessage, createNoteOnMessage } from '../lib/midi/messages';
 import type { MidiEventScheduler } from '../lib/scheduler/types';
 import { createTransportClock } from '../lib/transport/transportClock';
 import type { MidiPortInfo } from '../lib/midi/types';
+import {
+  calculateGateMs,
+  clampStepParameter,
+  createDefaultSteps,
+  createStepNoteEvents,
+  getStepDurationMs,
+  stepCount,
+  stepLengthBeats,
+  type SequencerStep,
+  type StepParameter,
+} from './eightStepSequencerHelpers';
 
-const stepCount = 8;
-const noteNumber = 60;
-const noteVelocity = 100;
-const stepLengthBeats = 0.25;
-const gateRatio = 0.5;
 const schedulerOffsetMs = 5;
 
 type Props = {
@@ -19,19 +24,24 @@ type Props = {
   scheduler: MidiEventScheduler;
 };
 
-function createInitialSteps(): boolean[] {
-  return Array.from({ length: stepCount }, (_, index) => index % 2 === 0);
-}
+function parseStepParameter(parameter: StepParameter, inputValue: string): number | null {
+  if (inputValue.trim() === '') {
+    return null;
+  }
 
-function getStepDurationMs(bpm: number): number {
-  return (60000 / bpm) / 4;
+  const parsed = Number(inputValue);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  return clampStepParameter(parameter, parsed);
 }
 
 export default function EightStepSequencer({ midiAccess, outputs, selectedOutputId, scheduler }: Props) {
   const clock = useMemo(() => createTransportClock({ bpm: 120 }), []);
   const [isRunning, setIsRunning] = useState(false);
   const [bpmInput, setBpmInput] = useState('120');
-  const [steps, setSteps] = useState<boolean[]>(() => createInitialSteps());
+  const [steps, setSteps] = useState<SequencerStep[]>(() => createDefaultSteps());
   const [currentStep, setCurrentStep] = useState<number | null>(null);
 
   const nextStepIndexRef = useRef(0);
@@ -63,31 +73,32 @@ export default function EightStepSequencer({ midiAccess, outputs, selectedOutput
 
       while (state.beatPosition >= nextStepBeatRef.current) {
         const stepIndex = nextStepIndexRef.current;
-        const isStepEnabled = steps[stepIndex];
+        const step = steps[stepIndex];
 
         setCurrentStep(stepIndex);
 
-        if (isStepEnabled && midiAccess && selectedOutputId) {
+        if (step.enabled && midiAccess && selectedOutputId) {
           const output = findOutputById(midiAccess, selectedOutputId);
           if (output) {
             const stepDurationMs = getStepDurationMs(state.bpm);
-            const gateMs = stepDurationMs * gateRatio;
+            const gateMs = calculateGateMs(stepDurationMs, step.gate);
             const noteOnTime = performance.now() + schedulerOffsetMs;
             const eventIdBase = `seq-${eventCounterRef.current++}`;
             const noteOnId = `${eventIdBase}-on`;
             const noteOffId = `${eventIdBase}-off`;
+            const { noteOn, noteOff } = createStepNoteEvents(step);
 
             scheduler.schedule({
               id: noteOnId,
               timeMs: noteOnTime,
-              message: createNoteOnMessage(noteNumber, noteVelocity),
+              message: noteOn,
             });
             scheduledEventIdsRef.current.add(noteOnId);
 
             scheduler.schedule({
               id: noteOffId,
               timeMs: noteOnTime + gateMs,
-              message: createNoteOffMessage(noteNumber, 0),
+              message: noteOff,
             });
             scheduledEventIdsRef.current.add(noteOffId);
           }
@@ -171,22 +182,103 @@ export default function EightStepSequencer({ midiAccess, outputs, selectedOutput
 
       {!hasSelectedOutput && <p className="error-message">Select a MIDI output device to run the sequencer.</p>}
 
-      <div className="sequencer-steps" role="group" aria-label="8-step sequencer pattern">
-        {steps.map((enabled, index) => (
-          <button
-            key={index}
-            type="button"
-            className={`sequencer-step ${enabled ? 'is-enabled' : ''} ${currentStep === index ? 'is-current' : ''}`}
-            onClick={() => {
-              setSteps((current) =>
-                current.map((value, valueIndex) => (valueIndex === index ? !value : value)),
-              );
-            }}
-            aria-pressed={enabled}
-          >
-            {index + 1}
-          </button>
-        ))}
+      <div className="sequencer-step-grid" role="group" aria-label="8-step sequencer pattern">
+        {steps.map((step, index) => {
+          const isCurrent = currentStep === index;
+
+          const updateStep = (updater: (current: SequencerStep) => SequencerStep) => {
+            setSteps((current) => current.map((value, valueIndex) => (valueIndex === index ? updater(value) : value)));
+          };
+
+          return (
+            <fieldset key={index} className={`sequencer-step-card ${isCurrent ? 'is-current' : ''}`}>
+              <legend>Step {index + 1}</legend>
+
+              <label className="sequencer-step-field sequencer-step-toggle">
+                <input
+                  type="checkbox"
+                  checked={step.enabled}
+                  onChange={(event) => {
+                    updateStep((current) => ({ ...current, enabled: event.target.checked }));
+                  }}
+                />
+                enabled
+              </label>
+
+              <label className="sequencer-step-field">
+                pitch
+                <input
+                  type="number"
+                  min={0}
+                  max={127}
+                  value={step.pitch}
+                  onChange={(event) => {
+                    const nextValue = parseStepParameter('pitch', event.target.value);
+                    if (nextValue === null) {
+                      return;
+                    }
+
+                    updateStep((current) => ({ ...current, pitch: nextValue }));
+                  }}
+                />
+              </label>
+
+              <label className="sequencer-step-field">
+                velocity
+                <input
+                  type="number"
+                  min={1}
+                  max={127}
+                  value={step.velocity}
+                  onChange={(event) => {
+                    const nextValue = parseStepParameter('velocity', event.target.value);
+                    if (nextValue === null) {
+                      return;
+                    }
+
+                    updateStep((current) => ({ ...current, velocity: nextValue }));
+                  }}
+                />
+              </label>
+
+              <label className="sequencer-step-field">
+                gate %
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={step.gate}
+                  onChange={(event) => {
+                    const nextValue = parseStepParameter('gate', event.target.value);
+                    if (nextValue === null) {
+                      return;
+                    }
+
+                    updateStep((current) => ({ ...current, gate: nextValue }));
+                  }}
+                />
+              </label>
+
+              <label className="sequencer-step-field">
+                channel
+                <input
+                  type="number"
+                  min={1}
+                  max={16}
+                  value={step.channel}
+                  onChange={(event) => {
+                    const nextValue = parseStepParameter('channel', event.target.value);
+                    if (nextValue === null) {
+                      return;
+                    }
+
+                    updateStep((current) => ({ ...current, channel: nextValue }));
+                  }}
+                />
+              </label>
+            </fieldset>
+          );
+        })}
       </div>
     </section>
   );

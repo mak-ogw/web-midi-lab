@@ -8,8 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:unit:build": "tsc --ignoreConfig --pretty false --target es2020 --module esnext --moduleResolution bundler --types node --lib ES2023,DOM --skipLibCheck --outDir .tmp-test src/lib/midi/types.ts src/lib/midi/webMidi.ts src/lib/transport/types.ts src/lib/transport/transportClock.ts src/lib/transport/transportClock.test.ts src/lib/scheduler/types.ts src/lib/scheduler/midiEventScheduler.ts src/lib/scheduler/midiEventScheduler.test.ts",
-    "test:unit": "npm run test:unit:clean && npm run test:unit:build && node --experimental-specifier-resolution=node --test test_webMidi.test.mjs .tmp-test/transport/transportClock.test.js .tmp-test/scheduler/midiEventScheduler.test.js && npm run test:unit:clean",
+    "test:unit:build": "tsc --ignoreConfig --pretty false --target es2020 --module esnext --moduleResolution bundler --types node --lib ES2023,DOM --skipLibCheck --outDir .tmp-test src/lib/midi/types.ts src/lib/midi/webMidi.ts src/lib/transport/types.ts src/lib/transport/transportClock.ts src/lib/transport/transportClock.test.ts src/lib/scheduler/types.ts src/lib/scheduler/midiEventScheduler.ts src/lib/scheduler/midiEventScheduler.test.ts src/components/eightStepSequencerHelpers.ts src/components/eightStepSequencerHelpers.test.ts",
+    "test:unit": "npm run test:unit:clean && npm run test:unit:build && node --experimental-specifier-resolution=node --test test_webMidi.test.mjs .tmp-test/lib/transport/transportClock.test.js .tmp-test/lib/scheduler/midiEventScheduler.test.js .tmp-test/components/eightStepSequencerHelpers.test.js && npm run test:unit:clean",
     "test:unit:clean": "node -e \"require('node:fs').rmSync('.tmp-test', { recursive: true, force: true })\""
   },
   "dependencies": {

@@ -2,10 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  applyHarmonyFromUiValueChange,
   applyPitch,
   calculateGateMs,
+  createHarmonyState,
   euclidean,
+  getHarmonyPlaybackPitchSet,
   getStepDurationMs,
+  mutateHarmonyState,
   nextNoteInScaleDown,
   nextNoteInScaleUp,
   rotatePattern,
@@ -61,4 +65,67 @@ test('pitch shift wraps octaves within the selected scale', () => {
 test('applyPitch shifts the full pitch set together', () => {
   assert.deepEqual(applyPitch([60, 64, 67], 2, 'major'), [64, 67, 71]);
   assert.deepEqual(applyPitch([60, 64, 67], -1, 'major'), [59, 62, 65]);
+});
+
+test('harmony mutation changes one note only', () => {
+  const state = createHarmonyState([60, 64, 67]);
+  const next = mutateHarmonyState(state, 1, 'major');
+  assert.deepEqual(next.pitchSet, [62, 64, 67]);
+});
+
+test('harmony mutation rotates target index', () => {
+  let state = createHarmonyState([60, 64, 67]);
+  state = mutateHarmonyState(state, 1, 'major');
+  assert.equal(state.nextTargetIndex, 1);
+  state = mutateHarmonyState(state, 1, 'major');
+  assert.equal(state.nextTargetIndex, 2);
+  state = mutateHarmonyState(state, 1, 'major');
+  assert.equal(state.nextTargetIndex, 0);
+});
+
+test('harmony mutation supports upward scale-constrained movement', () => {
+  const state = createHarmonyState([60, 64, 67]);
+  const next = mutateHarmonyState(state, 1, 'major');
+  assert.equal(next.pitchSet[0], 62);
+});
+
+test('harmony mutation supports downward scale-constrained movement', () => {
+  const state = createHarmonyState([60, 64, 67]);
+  const next = mutateHarmonyState(state, -1, 'major');
+  assert.equal(next.pitchSet[0], 59);
+});
+
+test('harmony is processed after pitch', () => {
+  const pitched = applyPitch([60, 64, 67], 1, 'major');
+  const harmonized = mutateHarmonyState(createHarmonyState(pitched), 1, 'major');
+  assert.deepEqual(harmonized.pitchSet, [64, 65, 69]);
+});
+
+test('repeated harmony changes continue from current transformed pitch set', () => {
+  let state = createHarmonyState([60, 64, 67]);
+  state = mutateHarmonyState(state, 1, 'major');
+  state = mutateHarmonyState(state, 1, 'major');
+  state = mutateHarmonyState(state, -1, 'major');
+  state = mutateHarmonyState(state, 1, 'major');
+  assert.deepEqual(state.pitchSet, [64, 65, 65]);
+});
+
+test('harmony mutation is driven by UI value changes only', () => {
+  const state = createHarmonyState([60, 64, 67]);
+  const unchanged = applyHarmonyFromUiValueChange(state, 0, 0, 'major');
+  assert.deepEqual(unchanged, state);
+
+  const changed = applyHarmonyFromUiValueChange(state, 0, 1, 'major');
+  assert.deepEqual(changed.pitchSet, [62, 64, 67]);
+  assert.equal(changed.nextTargetIndex, 1);
+});
+
+test('reading playback notes does not advance harmony state', () => {
+  const state = createHarmonyState([60, 64, 67]);
+  const firstRead = getHarmonyPlaybackPitchSet(state);
+  const secondRead = getHarmonyPlaybackPitchSet(state);
+
+  assert.deepEqual(firstRead, [60, 64, 67]);
+  assert.deepEqual(secondRead, [60, 64, 67]);
+  assert.equal(state.nextTargetIndex, 0);
 });

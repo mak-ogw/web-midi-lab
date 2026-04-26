@@ -35,3 +35,26 @@ This project will be split into multiple libraries:
 - One feature per PR
 - PR must pass `npm run build`
 
+## Sequencer Architecture Policy
+
+Do not assume that all sequencers are step sequencers.
+
+Shared libraries should focus on:
+- Web MIDI access
+- MIDI message send/receive
+- MIDI message formatting/decoding
+- transport state
+- clock/time management
+- scheduling timestamped MIDI events
+
+Application-specific sequencer logic should stay outside shared libraries, such as:
+- step patterns
+- piano roll data models
+- Euclidean pattern generation
+- generative rules
+- probability logic
+- automation lanes
+- chord progression logic
+
+The shared scheduler should not know what a "step" is.
+It should only handle timestamped musical/MIDI events.

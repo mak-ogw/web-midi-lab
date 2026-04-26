@@ -6,11 +6,11 @@ import {
   requestWebMidiAccess,
   sendTestNote,
   subscribeToInputMessages,
-} from '../lib/midi/webMidi';
-import { createNoteOffMessage, createNoteOnMessage, decodeMidiMessage, formatMidiBytes } from '../lib/midi/messages';
-import { findOutputById } from '../lib/midi/deviceUtils';
-import type { MidiDeviceSnapshot, MidiLogEntry, MidiPortInfo } from '../lib/midi/types';
-import { createMidiEventScheduler } from '../lib/scheduler/midiEventScheduler';
+} from '@web-midi-lab/midi-core';
+import { createNoteOffMessage, createNoteOnMessage, decodeMidiMessage, formatMidiBytes } from '@web-midi-lab/midi-core';
+import { findOutputById } from '@web-midi-lab/midi-core';
+import type { MidiDeviceSnapshot, MidiLogEntry, MidiPortInfo } from '@web-midi-lab/midi-core';
+import { createMidiEventScheduler } from '@web-midi-lab/scheduler';
 
 type MidiState = {
   loading: boolean;

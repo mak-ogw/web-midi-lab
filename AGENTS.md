@@ -4,10 +4,8 @@
 Build small Web MIDI applications that interact with external MIDI devices.
 No built-in audio engine.
 
-## Architecture Direction (future)
-This repository is still a single app today, but it is being prepared for a future npm workspace monorepo.
-
-Planned structure (future, not implemented yet):
+## Architecture Direction
+This repository uses an npm workspace monorepo structure:
 
 - `apps/midi-monitor`
 - `packages/midi-core`
@@ -15,14 +13,14 @@ Planned structure (future, not implemented yet):
 - `packages/scheduler`
 
 ## Current Phase
-- Single Vite + React + TypeScript app
-- No monorepo yet
-- No package extraction yet
+- npm workspace monorepo
+- One app workspace
+- Three shared package workspaces
 
 ## Constraints (IMPORTANT)
 - Do NOT add external dependencies unless explicitly instructed
 - Do NOT implement sequencing unless explicitly instructed
-- Do NOT restructure the repository
+- Do NOT restructure the repository beyond the workspace layout above
 - Keep implementations minimal and simple
 - Prefer plain TypeScript over abstraction
 
@@ -60,10 +58,11 @@ Application-specific sequencer logic should stay outside shared libraries, such 
 The shared scheduler should not know what a "step" is.
 It should only handle timestamped musical/MIDI events.
 
-## Boundary expectations for current single-app layout
-Until the monorepo conversion happens, keep reusable code in:
-- `src/lib/midi` → future `packages/midi-core`
-- `src/lib/transport` → future `packages/transport`
-- `src/lib/scheduler` → future `packages/scheduler`
+## Boundary expectations for workspace layout
+Keep reusable code in:
+- `packages/midi-core`
+- `packages/transport`
+- `packages/scheduler`
 
-Keep app-specific code (including 8-step UI/behavior) in app/component-level files under `src/components` or other app-layer locations.
+Keep app-specific code (including 8-step UI/behavior) in app-layer files under:
+- `apps/midi-monitor/src/components`

@@ -6,9 +6,9 @@ import {
   getMidiDeviceSnapshot,
   notSupportedMessage,
   sendTestNote,
-} from './.tmp-test/lib/midi/webMidi.js';
+} from './webMidi.js';
 
-function setNavigator(value) {
+function setNavigator(value: unknown) {
   Object.defineProperty(globalThis, 'navigator', {
     value,
     configurable: true,
@@ -73,14 +73,14 @@ test('permission denied errors are propagated', async () => {
 });
 
 test('sendTestNote sends note on then note off for channel 1', async () => {
-  const sentMessages = [];
+  const sentMessages: number[][] = [];
   const fakeOutput = {
-    send: (message) => {
+    send: (message: number[]) => {
       sentMessages.push(message);
     },
   };
 
-  await sendTestNote(fakeOutput, 1);
+  await sendTestNote(fakeOutput as MIDIOutput, 1);
 
   assert.deepEqual(sentMessages, [
     [0x90, 60, 100],

@@ -1,0 +1,14 @@
+{
+  "name": "@web-midi-lab/scheduler",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsc --ignoreConfig --pretty false --target es2020 --module esnext --moduleResolution bundler --types node --lib ES2023,DOM --skipLibCheck --outDir .tmp-test src/types.ts src/midiEventScheduler.ts src/midiEventScheduler.test.ts && node --experimental-specifier-resolution=node --test .tmp-test/midiEventScheduler.test.js && node -e \"require('node:fs').rmSync('.tmp-test', { recursive: true, force: true })\""
+  }
+}

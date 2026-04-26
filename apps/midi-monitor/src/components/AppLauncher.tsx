@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import MidiMonitorSection from './MidiMonitorSection';
 import EightStepSequencerSection from './EightStepSequencerSection';
 import TransportSchedulerDebug from './TransportSchedulerDebug';
+import EuclideanSequencer from '../../../euclidean-harmony-sequencer/src/components/EuclideanSequencer';
+import '../../../euclidean-harmony-sequencer/src/App.css';
 
-type SectionId = 'midi-monitor' | 'eight-step' | 'transport-debug';
+type SectionId = 'midi-monitor' | 'eight-step' | 'transport-debug' | 'euclidean-harmony-sequencer';
 
 type Section = {
   id: SectionId;
@@ -13,6 +15,7 @@ type Section = {
 const sections: Section[] = [
   { id: 'midi-monitor', label: 'MIDI Monitor' },
   { id: 'eight-step', label: '8-Step Sequencer' },
+  { id: 'euclidean-harmony-sequencer', label: 'Euclidean Harmony Sequencer' },
   { id: 'transport-debug', label: 'Transport / Scheduler Debug' },
 ];
 
@@ -26,6 +29,15 @@ export default function AppLauncher() {
 
     if (activeSection === 'eight-step') {
       return <EightStepSequencerSection />;
+    }
+
+    if (activeSection === 'euclidean-harmony-sequencer') {
+      return (
+        <section className="midi-panel">
+          <h2>Euclidean Harmony Sequencer</h2>
+          <EuclideanSequencer />
+        </section>
+      );
     }
 
     return <TransportSchedulerDebug />;

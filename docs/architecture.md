@@ -2,7 +2,7 @@
 
 ## Current state (npm workspace monorepo)
 
-This project is now an npm workspace monorepo with one app and three shared packages.
+This project is an npm workspace monorepo with one app and three shared packages.
 
 ## Workspace layout
 
@@ -12,7 +12,7 @@ This project is now an npm workspace monorepo with one app and three shared pack
 
 - `packages/midi-core`
   - Reusable Web MIDI primitives and helpers.
-  - Includes API access (`requestMIDIAccess` wrapper), device snapshot/listing utilities, message formatting/decoding helpers, and input subscriptions.
+  - Includes API access (`requestMIDIAccess` wrapper), device snapshot/listing utilities, MIDI message formatting/decoding helpers, raw MIDI send, and input subscriptions.
 
 - `packages/transport`
   - Reusable transport timing state.
@@ -21,6 +21,14 @@ This project is now an npm workspace monorepo with one app and three shared pack
 - `packages/scheduler`
   - Reusable timestamped MIDI event scheduling.
   - Includes lookahead processing, ordered scheduling, cancel by id, and clear/stop behavior.
+
+## Public API entry points
+
+Each shared package exposes a single public entry point through `src/index.ts` and `package.json` exports:
+
+- `@web-midi-lab/midi-core` → `packages/midi-core/src/index.ts`
+- `@web-midi-lab/transport` → `packages/transport/src/index.ts`
+- `@web-midi-lab/scheduler` → `packages/scheduler/src/index.ts`
 
 ## Boundary rules
 
@@ -37,3 +45,12 @@ This project is now an npm workspace monorepo with one app and three shared pack
 3. Shared scheduler and transport code must stay generic and event/time based.
 
 4. Shared packages must remain React-free.
+
+## Root workflows
+
+Run from repository root:
+
+- `npm install`
+- `npm run dev`
+- `npm run build`
+- `npm test`

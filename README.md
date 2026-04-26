@@ -1,82 +1,50 @@
-# React + TypeScript + Vite
+# web-midi-lab
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Small Web MIDI experiments organized as an npm workspace monorepo.
 
-Currently, two official plugins are available:
+## Workspaces
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- `apps/midi-monitor`: Vite + React app for device monitoring, transport debug UI, scheduler debug trigger, and the app-specific 8-step sequencer UI.
+- `packages/midi-core`: shared Web MIDI access, device helpers, message formatting/decoding, and input subscriptions.
+- `packages/transport`: shared transport timing state (BPM/start/stop/reset/elapsed/beat updates).
+- `packages/scheduler`: shared timestamped MIDI event scheduling with lookahead and cancellation.
 
-## React Compiler
+## Requirements
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js 20+
+- npm 10+
 
-## Expanding the ESLint configuration
+## Install
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Root workspace commands
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Run these from repository root:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- `npm run dev`
+  - Starts the `@web-midi-lab/midi-monitor` app in Vite dev mode.
+- `npm run build`
+  - Type-checks/builds all shared packages, then builds the app.
+- `npm test`
+  - Runs test suites for shared packages and app helper tests.
+
+## Package-level commands
+
+Examples:
+
+```bash
+npm run build -w @web-midi-lab/midi-core
+npm run test -w @web-midi-lab/transport
+npm run dev -w @web-midi-lab/midi-monitor
 ```
 
-## Unit tests for Web MIDI utility
+## Architecture notes
 
-This repository includes unit tests for the Web MIDI utility layer that do **not** require real browser MIDI access.
+- Shared packages are React-free.
+- Shared scheduler and transport stay generic (time/event oriented only).
+- App-specific sequencer behavior remains in `apps/midi-monitor`.
 
-- Run tests: `npm run test:unit`
-- The tests mock `navigator.requestMIDIAccess`.
-- The test flow uses Node's built-in test runner plus TypeScript compilation to a temporary `.tmp-test` folder.
-- No additional test dependency (for example Vitest) is required, which avoids install failures in restricted npm environments.
+For detailed boundaries, see `docs/architecture.md`.

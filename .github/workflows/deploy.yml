@@ -33,10 +33,11 @@ jobs:
       - name: Collect build outputs
         run: |
           rm -rf pages-dist
-          mkdir -p pages-dist/midi-monitor
-          mkdir -p pages-dist/euclidean-harmony-sequencer
+          mkdir -p pages-dist
 
-          cp -r apps/midi-monitor/dist/* pages-dist/midi-monitor/
+          cp -r apps/midi-monitor/dist/* pages-dist/
+
+          mkdir -p pages-dist/euclidean-harmony-sequencer
           cp -r apps/euclidean-harmony-sequencer/dist/* pages-dist/euclidean-harmony-sequencer/
 
       - name: Upload GitHub Pages artifact

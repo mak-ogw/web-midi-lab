@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { findOutputById } from '../lib/midi/deviceUtils';
-import type { MidiEventScheduler } from '../lib/scheduler/types';
-import { createTransportClock } from '../lib/transport/transportClock';
-import type { MidiPortInfo } from '../lib/midi/types';
+import { findOutputById } from '@web-midi-lab/midi-core';
+import type { MidiEventScheduler } from '@web-midi-lab/scheduler';
+import { createTransportClock } from '@web-midi-lab/transport';
+import type { MidiPortInfo } from '@web-midi-lab/midi-core';
 import {
   calculateGateMs,
   clampStepParameter,

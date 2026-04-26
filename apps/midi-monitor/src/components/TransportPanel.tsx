@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createTransportClock } from '../lib/transport/transportClock';
-import type { TransportClockState } from '../lib/transport/types';
+import { createTransportClock } from '@web-midi-lab/transport';
+import type { TransportClockState } from '@web-midi-lab/transport';
 
 const initialState: TransportClockState = {
   bpm: 120,

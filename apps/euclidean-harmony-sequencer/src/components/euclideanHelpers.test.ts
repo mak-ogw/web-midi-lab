@@ -7,6 +7,7 @@ import {
   applyVoicing,
   calculateGateMs,
   createHarmonyState,
+  degreesToPitchSet,
   euclidean,
   getActivePitchSet,
   getHarmonyPlaybackPitchSet,
@@ -69,10 +70,34 @@ test('applyPitch shifts the full pitch set together', () => {
   assert.deepEqual(applyPitch([60, 64, 67], -1, 'major'), [59, 62, 65]);
 });
 
-test('harmony mutation changes one note only', () => {
-  const state = createHarmonyState([60, 64, 67]);
-  const next = mutateHarmonyState(state, 1, 'major');
-  assert.deepEqual(next.pitchSet, [62, 64, 67]);
+test('harmony +1 targets highest note first, then descends', () => {
+  let state = createHarmonyState([60, 64, 67]);
+  state = mutateHarmonyState(state, 1, 'major');
+  assert.deepEqual(state.pitchSet, [60, 64, 69]);
+  state = mutateHarmonyState(state, 1, 'major');
+  assert.deepEqual(state.pitchSet, [60, 65, 69]);
+  state = mutateHarmonyState(state, 1, 'major');
+  assert.deepEqual(state.pitchSet, [62, 65, 69]);
+});
+
+test('harmony -1 targets lowest note first, then ascends', () => {
+  let state = createHarmonyState([60, 64, 67]);
+  state = mutateHarmonyState(state, -1, 'major');
+  assert.deepEqual(state.pitchSet, [59, 64, 67]);
+  state = mutateHarmonyState(state, -1, 'major');
+  assert.deepEqual(state.pitchSet, [59, 62, 67]);
+  state = mutateHarmonyState(state, -1, 'major');
+  assert.deepEqual(state.pitchSet, [59, 62, 65]);
+});
+
+test('harmony mutation changes only one note per step and remains scale-constrained', () => {
+  const before = createHarmonyState([60, 64, 67]);
+  const after = mutateHarmonyState(before, 1, 'major');
+
+  const changed = after.pitchSet.filter((note, index) => note !== before.pitchSet[index]);
+  assert.equal(changed.length, 1);
+  const changedNote = changed[0];
+  assert.ok(scaleTables.major.some((pitchClass) => pitchClass === (((changedNote % 12) + 12) % 12)));
 });
 
 test('harmony mutation rotates target index', () => {
@@ -85,22 +110,10 @@ test('harmony mutation rotates target index', () => {
   assert.equal(state.nextTargetIndex, 0);
 });
 
-test('harmony mutation supports upward scale-constrained movement', () => {
-  const state = createHarmonyState([60, 64, 67]);
-  const next = mutateHarmonyState(state, 1, 'major');
-  assert.equal(next.pitchSet[0], 62);
-});
-
-test('harmony mutation supports downward scale-constrained movement', () => {
-  const state = createHarmonyState([60, 64, 67]);
-  const next = mutateHarmonyState(state, -1, 'major');
-  assert.equal(next.pitchSet[0], 59);
-});
-
 test('harmony is processed after pitch', () => {
   const pitched = applyPitch([60, 64, 67], 1, 'major');
   const harmonized = mutateHarmonyState(createHarmonyState(pitched), 1, 'major');
-  assert.deepEqual(harmonized.pitchSet, [64, 65, 69]);
+  assert.deepEqual(harmonized.pitchSet, [62, 65, 71]);
 });
 
 test('repeated harmony changes continue from current transformed pitch set', () => {
@@ -109,7 +122,7 @@ test('repeated harmony changes continue from current transformed pitch set', () 
   state = mutateHarmonyState(state, 1, 'major');
   state = mutateHarmonyState(state, -1, 'major');
   state = mutateHarmonyState(state, 1, 'major');
-  assert.deepEqual(state.pitchSet, [64, 65, 65]);
+  assert.deepEqual(state.pitchSet, [60, 65, 69]);
 });
 
 test('harmony mutation is driven by UI value changes only', () => {
@@ -118,7 +131,7 @@ test('harmony mutation is driven by UI value changes only', () => {
   assert.deepEqual(unchanged, state);
 
   const changed = applyHarmonyFromUiValueChange(state, 0, 1, 'major');
-  assert.deepEqual(changed.pitchSet, [62, 64, 67]);
+  assert.deepEqual(changed.pitchSet, [60, 64, 69]);
   assert.equal(changed.nextTargetIndex, 1);
 });
 
@@ -161,7 +174,7 @@ test('pipeline order is pitch then harmony then voicing', () => {
   const pitched = applyPitch([60, 64, 67], 1, 'major');
   const harmonized = mutateHarmonyState(createHarmonyState(pitched), 1, 'major');
   const voiced = applyVoicing(harmonized.pitchSet, 1);
-  assert.deepEqual(voiced, [65, 69, 76]);
+  assert.deepEqual(voiced, [65, 71, 74]);
 });
 
 test('active cycle switching updates immediately by index', () => {
@@ -173,4 +186,24 @@ test('active cycle switching updates immediately by index', () => {
 
   assert.deepEqual(getActivePitchSet(cycles, 0), [60, 64, 67]);
   assert.deepEqual(getActivePitchSet(cycles, 2), [59, 62, 67]);
+});
+
+
+test('scale-relative degrees [1,3,5] map by selected scale', () => {
+  assert.deepEqual(degreesToPitchSet([1, 3, 5], 'major', 60, 60), [60, 64, 67]);
+  assert.deepEqual(degreesToPitchSet([1, 3, 5], 'natural_minor', 60, 60), [60, 63, 67]);
+  assert.deepEqual(degreesToPitchSet([1, 3, 5], 'pentatonic', 60, 60), [60, 64, 69]);
+});
+
+test('cycle pitch set recalculates when scale changes', () => {
+  const degrees = [1, 3, 5];
+  assert.notDeepEqual(degreesToPitchSet(degrees, 'major', 60, 60), degreesToPitchSet(degrees, 'natural_minor', 60, 60));
+});
+
+test('pipeline keeps pitch, harmony, voicing after resolving cycle degrees', () => {
+  const base = degreesToPitchSet([1, 3, 5], 'major', 60, 60);
+  const pitched = applyPitch(base, 1, 'major');
+  const harmonized = mutateHarmonyState(createHarmonyState(pitched), 1, 'major');
+  const voiced = applyVoicing(harmonized.pitchSet, 1);
+  assert.deepEqual(voiced, [65, 71, 74]);
 });

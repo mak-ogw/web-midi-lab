@@ -19,6 +19,7 @@ export type HarmonyState = {
   nextTargetIndex: number;
 };
 export type PitchCycle = readonly (readonly number[])[];
+export type DegreeCycle = readonly (readonly number[])[];
 
 const minMidiNote = 0;
 const maxMidiNote = 127;
@@ -140,13 +141,17 @@ export function mutateHarmonyState(state: HarmonyState, direction: HarmonyDirect
     return state;
   }
 
-  const index = state.nextTargetIndex % state.pitchSet.length;
+  const cycleIndex = state.nextTargetIndex % state.pitchSet.length;
+  const orderedIndices = [...state.pitchSet.keys()].sort((a, b) => state.pitchSet[a] - state.pitchSet[b]);
+  const index = direction > 0
+    ? orderedIndices[orderedIndices.length - 1 - cycleIndex]
+    : orderedIndices[cycleIndex];
   const notes = [...state.pitchSet];
   notes[index] = shiftNoteInScale(notes[index], direction, scaleTables[scaleName]);
 
   return {
     pitchSet: notes,
-    nextTargetIndex: (index + 1) % notes.length,
+    nextTargetIndex: (cycleIndex + 1) % notes.length,
   };
 }
 
@@ -197,4 +202,31 @@ export function getActivePitchSet(cycles: PitchCycle, currentCycleIndex: number)
 
   const safeIndex = Math.min(cycles.length - 1, Math.max(0, Math.round(currentCycleIndex)));
   return [...cycles[safeIndex]];
+}
+
+export function scaleDegreeToMidiNote(
+  degreeInput: number,
+  scaleName: ScaleName,
+  rootNote: number = 60,
+  octaveBase: number = 60,
+): number {
+  const degree = Math.max(1, Math.round(degreeInput));
+  const scale = scaleTables[scaleName];
+  const degreeOffset = degree - 1;
+  const scaleLength = scale.length;
+  const octaveOffset = Math.floor(degreeOffset / scaleLength);
+  const scaleIndex = degreeOffset % scaleLength;
+
+  const normalizedRootPc = ((Math.round(rootNote) % 12) + 12) % 12;
+  const baseOctaveStart = Math.floor(Math.round(octaveBase) / 12) * 12;
+  return baseOctaveStart + normalizedRootPc + octaveOffset * 12 + scale[scaleIndex];
+}
+
+export function degreesToPitchSet(
+  degrees: readonly number[],
+  scaleName: ScaleName,
+  rootNote: number = 60,
+  octaveBase: number = 60,
+): number[] {
+  return degrees.map((degree) => scaleDegreeToMidiNote(degree, scaleName, rootNote, octaveBase));
 }

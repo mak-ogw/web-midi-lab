@@ -20,6 +20,7 @@ import {
   scaleTables,
   type HarmonyState,
   type ScaleName,
+  degreesToPitchSet,
 } from './euclideanHelpers';
 
 const channel = 1;
@@ -31,14 +32,14 @@ const maxMidiNote = 127;
 const divisionOptions = [1, 2, 4, 8, 16];
 const cyclePresets = {
   triads: [
-    [60, 64, 67],
-    [62, 65, 69],
-    [59, 62, 67],
+    [1, 3, 5],
+    [2, 4, 6],
+    [7, 2, 5],
   ],
   sevenths: [
-    [60, 64, 67, 71],
-    [62, 65, 69, 72],
-    [59, 62, 65, 69],
+    [1, 3, 5, 7],
+    [2, 4, 6, 8],
+    [7, 2, 4, 6],
   ],
 } as const;
 type CyclePresetName = keyof typeof cyclePresets;
@@ -101,7 +102,8 @@ export default function EuclideanSequencer() {
   }, [offset, pulses, steps]);
 
   const cycles = cyclePresets[cyclePresetName];
-  const activePitchSet = useMemo(() => getActivePitchSet(cycles, currentCycleIndex), [currentCycleIndex, cycles]);
+  const activeDegrees = useMemo(() => getActivePitchSet(cycles, currentCycleIndex), [currentCycleIndex, cycles]);
+  const activePitchSet = useMemo(() => degreesToPitchSet(activeDegrees, scaleName, 60, 60), [activeDegrees, scaleName]);
   const pitchedSet = useMemo(() => applyPitch(activePitchSet, pitch, scaleName), [activePitchSet, pitch, scaleName]);
   const [harmonyState, setHarmonyState] = useState<HarmonyState>(() => createHarmonyState(pitchedSet));
   const voicedSet = useMemo(() => applyVoicing(getHarmonyPlaybackPitchSet(harmonyState), voicing), [harmonyState, voicing]);
